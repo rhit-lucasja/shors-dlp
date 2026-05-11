@@ -138,65 +138,80 @@ def draw_mod_mult_gate(g, N):
     # display the transpiled circuit
     plt.show()
 
+# generate a ** (2**k) mod N
+def a2kmodN(a, k, N):
+    """Compute a^{2^k} (mod N) by repeated squaring"""
+    for i in range(k):
+        a = int(np.mod(a**2, N))
+    return a
+
+# constructs, draws, and returns the circuit used for phase/order finding
+def order_finding(N, a, num_target, num_control, draw=False):
+
+    k_list = range(num_control)
+    b_list = [a2kmodN(a, k, N) for k in k_list]
+
+    # Initialize the circuit
+    control = QuantumRegister(num_control, name="C")
+    target = QuantumRegister(num_target, name="T")
+    output = ClassicalRegister(num_control, name="out")
+    circuit = QuantumCircuit(control, target, output)
+
+    # Initialize the target register to the state |1>
+    circuit.x(num_control)
+
+    # Add the Hadamard gates and controlled versions of the
+    # multiplication gates
+    for k, qubit in enumerate(control):
+        circuit.h(k)
+        b = b_list[k]
+        if b == 2:
+            circuit.compose(
+                controlled_M2mod15(), qubits=[qubit] + list(target), inplace=True
+            )
+        elif b == 4:
+            circuit.compose(
+                controlled_M4mod15(), qubits=[qubit] + list(target), inplace=True
+            )
+        else:
+            continue  # M1 is the identity operator
+
+    # Apply the inverse QFT to the control register
+    circuit.compose(QFT(num_control, inverse=True), qubits=control, inplace=True)
+
+    # Measure the control register
+    circuit.measure(control, output)
+
+    if (draw):
+        circuit.draw("mpl", fold=-1)
+        plt.show()
+
+    return circuit
+
+# run the order finding circuit and return counts
+def try_order_finding(circuit):
+    # actually running the circuit
+    pm = generate_preset_pass_manager(backend=backend, optimization_level=1)
+    trans_circuit = pm.run(circuit)
+    sampler = Sampler(mode=backend)
+    job = sampler.run([trans_circuit], shots=1024)
+    result = job.result()[0]
+    counts = result.data.out.get_counts()
+    return counts
+
 # Order finding problem for N = 15 with a = 2
 N = 15
 a = 2
 
 # Number of qubits
 num_target = floor(log(N - 1, 2)) + 1  # for modular exponentiation operators
-num_control = 2 * num_target  # for enough precision of estimation
+num_control = 2 * num_target  # for enough precision in phase estimation
 
-# List of M_b operators in order
-def a2kmodN(a, k, N):
-    """Compute a^{2^k} (mod N) by repeated squaring"""
-    for i in range(k):
-        a = int(np.mod(a**2, N))
-    return a
-k_list = range(num_control)
-b_list = [a2kmodN(2, k, 15) for k in k_list]
-
-# Initialize the circuit
-control = QuantumRegister(num_control, name="C")
-target = QuantumRegister(num_target, name="T")
-output = ClassicalRegister(num_control, name="out")
-circuit = QuantumCircuit(control, target, output)
-
-# Initialize the target register to the state |1>
-circuit.x(num_control)
-
-# Add the Hadamard gates and controlled versions of the
-# multiplication gates
-for k, qubit in enumerate(control):
-    circuit.h(k)
-    b = b_list[k]
-    if b == 2:
-        circuit.compose(
-            M2mod15().control(), qubits=[qubit] + list(target), inplace=True
-        )
-    elif b == 4:
-        circuit.compose(
-            M4mod15().control(), qubits=[qubit] + list(target), inplace=True
-        )
-    else:
-        continue  # M1 is the identity operator
-
-# Apply the inverse QFT to the control register
-circuit.compose(QFT(num_control, inverse=True), qubits=control, inplace=True)
-
-# Measure the control register
-circuit.measure(control, output)
-
-circuit.draw("mpl", fold=-1)
-plt.show()
-
-# actually running the circuit
-pm = generate_preset_pass_manager(backend=backend, optimization_level=1)
-trans_circuit = pm.run(circuit)
-sampler = Sampler(mode=backend)
-job = sampler.run([trans_circuit], shots=1024)
-result = job.result()[0]
-counts = result.data.out.get_counts()
-print (counts)
+# create the phase estimation circuit
+circuit = order_finding(N, a, num_target, num_control)
+# actually run the circuit and get resulting probability distribution
+counts = try_order_finding(circuit)
+print (f"Counts: {counts}\n")
 
 # Rows to be displayed in table
 rows = []
