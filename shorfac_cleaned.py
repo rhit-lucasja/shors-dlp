@@ -6,10 +6,8 @@ from fractions import Fraction
 from math import floor, gcd, log
 
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
-from qiskit.circuit.library import UnitaryGate
-from qiskit.synthesis.qft import synth_qft_full as QFT
+from qiskit.circuit.library import QFT, UnitaryGate
 from qiskit.transpiler import generate_preset_pass_manager
-from qiskit.visualization import plot_histogram
 
 from qiskit_aer import AerSimulator
 from qiskit_ibm_runtime import SamplerV2 as Sampler
