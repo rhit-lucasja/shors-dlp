@@ -247,39 +247,22 @@ def guess_rs(measured_phases, N):
 
     return list(df["Guess for r"])
 
-# # actually factoring N using the order guesses r
-# a = 2
-# N = 15
+# actually factoring N using the order guesses r
+def factor(N, a, phases, rs):
+    for i in range(len(phases)):
+        print(f"ATTEMPT {i+1}:")
+        phase = phases[i]
+        r = rs[i]
+        print(f"Order of {a} modulo {N} estimated as: r = {r}\n")
 
-# FACTOR_FOUND = False
-# num_attempt = 0
-
-# while not FACTOR_FOUND:
-#     print(f"\nATTEMPT {num_attempt+1}:")
-#     # Here, we get the bitstring by iterating over outcomes
-#     # of a previous hardware run with multiple shots.
-#     # Instead, we can also perform a single-shot measurement
-#     # here in the loop.
-#     bitstring = list(counts.keys())[num_attempt]
-#     num_attempt += 1
-#     # Find the phase from measurement
-#     decimal = int(bitstring, 2)
-#     phase = decimal / (2**num_control)  # phase = k / r
-#     print(f"Phase: theta = {phase}")
-
-#     # Guess the order from phase
-#     frac = Fraction(phase).limit_denominator(N)
-#     r = frac.denominator  # order = r
-#     print(f"Order of {a} modulo {N} estimated as: r = {r}")
-
-#     if phase != 0:
-#         # Guesses for factors are gcd(a^{r / 2} ± 1, 15)
-#         if r % 2 == 0:
-#             x = pow(a, r // 2, N) - 1
-#             d = gcd(x, N)
-#             if d > 1:
-#                 FACTOR_FOUND = True
-#                 print(f"*** Non-trivial factor found: {x} ***")
+        if phase != 0:
+            # Guesses for factors are gcd(a^{r / 2} ± 1, 15)
+            if r % 2 == 0:
+                x = pow(a, r // 2, N) - 1
+                d = gcd(x, N)
+                if d > 1:
+                    print(f"*** Non-trivial factor found: {x} ***\n")
+                    return x
 
 # Order finding problem for N = 15 with a = 2
 N = 15
@@ -293,9 +276,10 @@ num_control = 2 * num_target  # for enough precision in phase estimation
 circuit = order_finding(N, a, num_target, num_control)
 # actually run the circuit and get resulting probability distribution
 counts = try_order_finding(circuit)
-print (f"\nSHOR'S ALGORITHM FOR FACTORING N={N} USING BASE a={a}\n{'='*100}")
+print (f"\nSHOR'S ALGORITHM FOR FACTORING N = {N} USING BASE a = {a}\n{'='*100}")
 print (f"Order-Finding Simulation Results:\n\t\t{counts}\n{'='*100}")
 phases = output_to_phases(counts)
 print (f"{'='*100}")
 rs = guess_rs(phases, N)
 print (f"{'='*100}")
+p = factor(N, a, phases, rs)
