@@ -1,3 +1,4 @@
+print ("Importing libraries...")
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -5,12 +6,14 @@ from fractions import Fraction
 from math import floor, gcd, log
 
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
-from qiskit.circuit.library import QFT, UnitaryGate
+from qiskit.circuit.library import UnitaryGate
+from qiskit.synthesis.qft import synth_qft_full as QFT
 from qiskit.transpiler import generate_preset_pass_manager
 from qiskit.visualization import plot_histogram
 
 from qiskit_aer import AerSimulator
 from qiskit_ibm_runtime import SamplerV2 as Sampler
+print ("Finished importing.")
 
 backend = AerSimulator()
 
@@ -199,6 +202,85 @@ def try_order_finding(circuit):
     counts = result.data.out.get_counts()
     return counts
 
+# given the circuit count results, determine the probable phases
+def output_to_phases(counts):
+    # Rows to be displayed in table
+    rows = []
+    # Corresponding phase of each bitstring
+    measured_phases = []
+
+    for output in counts:
+        decimal = int(output, 2)  # Convert bitstring to decimal
+        phase = decimal / (2**num_control)  # Find corresponding eigenvalue
+        measured_phases.append(phase)
+        # Add these values to the rows in our table:
+        rows.append(
+            [
+                f"{output}(bin) = {decimal:>3}(dec)",
+                f"{decimal}/{2 ** num_control} = {phase:.2f}",
+            ]
+        )
+
+    # Print the rows in a table
+    headers = ["Register Output", "Phase"]
+    df = pd.DataFrame(rows, columns=headers)
+    print(df)
+
+    return measured_phases
+
+# using contnued fractions with limited denom to guess at r
+# returns a list containing guesses for r
+def guess_rs(measured_phases, N):
+    # Rows to be displayed in a table
+    rows = []
+
+    for phase in measured_phases:
+        frac = Fraction(phase).limit_denominator(N)
+        rows.append(
+            [phase, f"{frac.numerator}/{frac.denominator}", frac.denominator]
+        )
+
+    # Print the rows in a table
+    headers = ["Phase", "Fraction", "Guess for r"]
+    df = pd.DataFrame(rows, columns=headers)
+    print(df)
+
+    return list(df["Guess for r"])
+
+# # actually factoring N using the order guesses r
+# a = 2
+# N = 15
+
+# FACTOR_FOUND = False
+# num_attempt = 0
+
+# while not FACTOR_FOUND:
+#     print(f"\nATTEMPT {num_attempt+1}:")
+#     # Here, we get the bitstring by iterating over outcomes
+#     # of a previous hardware run with multiple shots.
+#     # Instead, we can also perform a single-shot measurement
+#     # here in the loop.
+#     bitstring = list(counts.keys())[num_attempt]
+#     num_attempt += 1
+#     # Find the phase from measurement
+#     decimal = int(bitstring, 2)
+#     phase = decimal / (2**num_control)  # phase = k / r
+#     print(f"Phase: theta = {phase}")
+
+#     # Guess the order from phase
+#     frac = Fraction(phase).limit_denominator(N)
+#     r = frac.denominator  # order = r
+#     print(f"Order of {a} modulo {N} estimated as: r = {r}")
+
+#     if phase != 0:
+#         # Guesses for factors are gcd(a^{r / 2} ± 1, 15)
+#         if r % 2 == 0:
+#             x = pow(a, r // 2, N) - 1
+#             d = gcd(x, N)
+#             if d > 1:
+#                 FACTOR_FOUND = True
+#                 print(f"*** Non-trivial factor found: {x} ***")
+
 # Order finding problem for N = 15 with a = 2
 N = 15
 a = 2
@@ -211,75 +293,9 @@ num_control = 2 * num_target  # for enough precision in phase estimation
 circuit = order_finding(N, a, num_target, num_control)
 # actually run the circuit and get resulting probability distribution
 counts = try_order_finding(circuit)
-print (f"Counts: {counts}\n")
-
-# Rows to be displayed in table
-rows = []
-# Corresponding phase of each bitstring
-measured_phases = []
-
-for output in counts:
-    decimal = int(output, 2)  # Convert bitstring to decimal
-    phase = decimal / (2**num_control)  # Find corresponding eigenvalue
-    measured_phases.append(phase)
-    # Add these values to the rows in our table:
-    rows.append(
-        [
-            f"{output}(bin) = {decimal:>3}(dec)",
-            f"{decimal}/{2 ** num_control} = {phase:.2f}",
-        ]
-    )
-
-# Print the rows in a table
-headers = ["Register Output", "Phase"]
-df = pd.DataFrame(rows, columns=headers)
-print(df)
-
-# using contnued fractions with limited denom to guess at r
-# Rows to be displayed in a table
-rows = []
-
-for phase in measured_phases:
-    frac = Fraction(phase).limit_denominator(15)
-    rows.append(
-        [phase, f"{frac.numerator}/{frac.denominator}", frac.denominator]
-    )
-
-# Print the rows in a table
-headers = ["Phase", "Fraction", "Guess for r"]
-df = pd.DataFrame(rows, columns=headers)
-print(df)
-
-# actually factoring N using the order guesses r
-a = 2
-N = 15
-
-FACTOR_FOUND = False
-num_attempt = 0
-
-while not FACTOR_FOUND:
-    print(f"\nATTEMPT {num_attempt+1}:")
-    # Here, we get the bitstring by iterating over outcomes
-    # of a previous hardware run with multiple shots.
-    # Instead, we can also perform a single-shot measurement
-    # here in the loop.
-    bitstring = list(counts.keys())[num_attempt]
-    num_attempt += 1
-    # Find the phase from measurement
-    decimal = int(bitstring, 2)
-    phase = decimal / (2**num_control)  # phase = k / r
-    print(f"Phase: theta = {phase}")
-
-    # Guess the order from phase
-    frac = Fraction(phase).limit_denominator(N)
-    r = frac.denominator  # order = r
-    print(f"Order of {a} modulo {N} estimated as: r = {r}")
-
-    if phase != 0:
-        # Guesses for factors are gcd(a^{r / 2} ± 1, 15)
-        if r % 2 == 0:
-            x = pow(a, r // 2, N) - 1
-            d = gcd(x, N)
-            if d > 1:
-                FACTOR_FOUND = True
-                print(f"*** Non-trivial factor found: {x} ***")
+print (f"\nSHOR'S ALGORITHM FOR FACTORING N={N} USING BASE a={a}\n{'='*100}")
+print (f"Order-Finding Simulation Results:\n\t\t{counts}\n{'='*100}")
+phases = output_to_phases(counts)
+print (f"{'='*100}")
+rs = guess_rs(phases, N)
+print (f"{'='*100}")
