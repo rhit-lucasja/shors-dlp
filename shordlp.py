@@ -15,8 +15,24 @@ print ("Finished importing.")
 
 backend = AerSimulator()
 
+# f(a, b) = (g^a)(x^b)
+def f(g, x, p, a, b):
+    return (pow(g, a, p) * pow(x, b, p)) % p
 
+# generate unitary gate / permutation matrix for f(a, b)
+def FGate(g, x, p):
 
+    # determine the modular exponentiation value
+    f_val = f(g, x, p, a, b)
+    if f_val == 0:
+        print (f"Error: ({g}^{a})({x}^{b}) = 0 (mod {p})")
+        return None
+    
+    n = floor(log(p - 1, 2)) + 1
+    U = np.full((2**n, 2**n), 0)
+    for a in range(2**n):
+        for b in range(2**n):
+            pass
 
 # finds an r such that g^r = x (mod p)
 def solve_dlp(g, x, p):
@@ -42,6 +58,7 @@ def solve_dlp(g, x, p):
     
 
 
+
     circuit.draw("mpl", fold=-1)
     plt.show()
 
@@ -53,5 +70,5 @@ def solve_dlp(g, x, p):
     # counts = result.data.out.get_counts()
     # print (counts)
 
-r = solve_dlp(3, 7, 11)
+r = solve_dlp(3, 5, 7)
 print (f"{r} = 3?")
