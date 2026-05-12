@@ -23,15 +23,22 @@ def solve_dlp(g, x, p):
     
     print (f"Using Shor's to solve {g} ^ r = {x} (mod {p})")
 
-    A = QuantumRegister(p - 1, name="A")
-    B = QuantumRegister(p - 1, name="B")
-    circuit = QuantumCircuit(A, B)
+    num_exp = floor(log(p - 1, 2)) + 1
+    num_base = floor(log(p, 2)) + 1
 
-    # initialize superposition of A and B states for all a,b in Z_p
-    for k, qubit in enumerate(A):
-        circuit.h(k) # places A in superposition
-        circuit.h(p - 1 + k) # places B in superposition
+    # registers for the exponents A,B when we try (g^A)(x^B)
+    A = QuantumRegister(num_exp, name="A")
+    B = QuantumRegister(num_exp, name="B")
 
+    # for (g^A)(x^B)
+    F = QuantumRegister(num_base, name="F")
+
+    # create circuit with known registers
+    circuit = QuantumCircuit(A, B, F)
+
+    # initialize superposition of A and B for all states
+    circuit.h(A)
+    circuit.h(B)
     
 
 
@@ -46,5 +53,5 @@ def solve_dlp(g, x, p):
     # counts = result.data.out.get_counts()
     # print (counts)
 
-r = solve_dlp(3, 6, 7)
+r = solve_dlp(3, 7, 11)
 print (f"{r} = 3?")
