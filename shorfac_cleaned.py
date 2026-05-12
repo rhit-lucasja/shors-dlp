@@ -183,7 +183,7 @@ def order_finding(N, a, num_target, num_control, draw=False):
     # Measure the control register
     circuit.measure(control, output)
 
-    if (draw):
+    if draw:
         circuit.draw("mpl", fold=-1)
         plt.show()
 
@@ -271,7 +271,7 @@ num_target = floor(log(N - 1, 2)) + 1  # for modular exponentiation operators
 num_control = 2 * num_target  # for enough precision in phase estimation
 
 # create the phase estimation circuit
-circuit = order_finding(N, a, num_target, num_control)
+circuit = order_finding(N, a, num_target, num_control, draw=True)
 # actually run the circuit and get resulting probability distribution
 counts = try_order_finding(circuit)
 print (f"\nSHOR'S ALGORITHM FOR FACTORING N = {N} USING BASE a = {a}\n{'='*100}")
