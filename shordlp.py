@@ -21,18 +21,38 @@ def f(g, x, p, a, b):
 
 # generate unitary gate / permutation matrix for f(a, b)
 def FGate(g, x, p):
-
-    # determine the modular exponentiation value
-    f_val = f(g, x, p, a, b)
-    if f_val == 0:
-        print (f"Error: ({g}^{a})({x}^{b}) = 0 (mod {p})")
-        return None
     
-    n = floor(log(p - 1, 2)) + 1
-    U = np.full((2**n, 2**n), 0)
+    n = floor(log(p - 1, 2)) + 1 # number of qubits per register
+    U = np.full((2**(3*n), 2**(3*n)), 0) # permutation matrix
+
     for a in range(2**n):
         for b in range(2**n):
-            pass
+            # need a third to create true permutation matrix
+            #   since (a,b) alone do not give unique outputs f(a,b)
+            #   but y XOR f(a, b) would be reversible and unique
+            #   and in practice we'll just use y=0 always to store f(a,b)
+            for y in range(2**n):
+                # original state |A>|B>|Y>
+                old = (a << 6) | (b << 3) | y
+
+                # coerce exponents to mod p-1
+                aa = a % (p - 1)
+                bb = b % (p - 1)
+
+                # figure out modular exponentiation result
+                f_val = f(g, x, p, a, b)
+
+                # new state |A>|B>|Y XOR F>
+                new = (a << 6) | (b << 3) | (y ^ f_val)
+
+                # set result in unitary matrix
+                U[new][old] = 1
+
+    # after looping, should have unitary matrix
+    # convert into a gate to be used in circuit
+    G = UnitaryGate(U)
+    G.name = f"FGate"
+    return G
 
 # finds an r such that g^r = x (mod p)
 def solve_dlp(g, x, p):
@@ -48,16 +68,27 @@ def solve_dlp(g, x, p):
 
     # for (g^A)(x^B)
     F = QuantumRegister(num_base, name="F")
+    G = ClassicalRegister(num_base, name="G")
 
     # create circuit with known registers
-    circuit = QuantumCircuit(A, B, F)
+    circuit = QuantumCircuit(A, B, F, G)
 
     # initialize superposition of A and B for all states
     circuit.h(A)
     circuit.h(B)
     
+    # create the gate that sets F into f(a, b)
+    FG = FGate(g, x, p)
 
+    # apply the gate to the circuit that we have
+    circuit.compose(
+        FG, qubits=list(A) + list(B) + list(F), inplace=True
+    )
 
+    # measure the F register to pare down superposed A, B values
+    circuit.measure(F, G)
+
+    # TODO: QFT and order finding
 
     circuit.draw("mpl", fold=-1)
     plt.show()
