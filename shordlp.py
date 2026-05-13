@@ -115,5 +115,5 @@ def solve_dlp(g, x, p):
     print (countsA)
     print (countsB)
 
-r = solve_dlp(3, 5, 7)
+r = solve_dlp(3, 6, 7)
 print (f"{r} = 3?")
