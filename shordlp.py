@@ -77,9 +77,10 @@ def solve_dlp(g, x, p):
     circuit = QuantumCircuit(A, B, F, G, out)
 
     # initialize superposition of A and B for all states
-    for k, qubit in enumerate(A):
-        circuit.h(k)
-        circuit.h(num_exp + k)
+    for qubit in A:
+        circuit.h(qubit)
+    for qubit in B:
+        circuit.h(qubit)
     
     # create the gate that sets F into f(a, b)
     FG = FGate(g, x, p)
