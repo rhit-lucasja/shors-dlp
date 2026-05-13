@@ -27,6 +27,9 @@ def FGate(g, x, p, num_exp, num_base):
 
     for a in range(2**num_exp):
         for b in range(2**num_exp):
+            # coerce exponents to mod p-1
+            aa = a % (p - 1)
+            bb = b % (p - 1)
             # figure out modular exponentiation result
             f_val = f(g, x, p, aa, bb)
 
@@ -37,10 +40,6 @@ def FGate(g, x, p, num_exp, num_base):
             for y in range(2**num_base):
                 # original state |A>|B>|Y>
                 old = (a << (num_exp + num_base)) | (b << num_base) | y
-
-                # coerce exponents to mod p-1
-                aa = a % (p - 1)
-                bb = b % (p - 1)
 
                 # new state |A>|B>|Y XOR F>
                 new = (a << (num_exp + num_base)) | (b << num_base) | (y ^ f_val)
@@ -113,6 +112,16 @@ def solve_dlp(g, x, p):
     result = job.result()[0]
     counts = result.data.out.get_counts()
     print (counts)
+
+    # progressing thru most common results downward, solve for r
+    guesses = []
+    for output in counts:
+        # convert bitstring to decimal
+        decA = int(output[:3], 2)
+        decB = int(output[3:], 2)
+        guesses.append((decA, decB, counts[output]))
+    print (guesses)
+
 
 r = solve_dlp(3, 6, 7)
 print (f"r: {r}")
