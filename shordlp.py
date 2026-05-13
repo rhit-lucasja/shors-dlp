@@ -11,6 +11,8 @@ from qiskit.transpiler import generate_preset_pass_manager
 
 from qiskit_aer import AerSimulator
 from qiskit_ibm_runtime import SamplerV2 as Sampler
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 print ("Finished importing.")
 
 backend = AerSimulator()
@@ -68,10 +70,14 @@ def solve_dlp(g, x, p):
 
     # for (g^A)(x^B)
     F = QuantumRegister(num_base, name="F")
+
+    # for measurements
     G = ClassicalRegister(num_base, name="G")
+    outA = ClassicalRegister(num_exp, name="outA")
+    outB = ClassicalRegister(num_exp, name="outB")
 
     # create circuit with known registers
-    circuit = QuantumCircuit(A, B, F, G)
+    circuit = QuantumCircuit(A, B, F, G, outA, outB)
 
     # initialize superposition of A and B for all states
     circuit.h(A)
@@ -88,7 +94,13 @@ def solve_dlp(g, x, p):
     # measure the F register to pare down superposed A, B values
     circuit.measure(F, G)
 
-    # TODO: QFT and order finding
+    # apply inverse QFT to the A and B registers
+    circuit.compose(QFT(num_exp, inverse=True), qubits=A, inplace=True)
+    circuit.compose(QFT(num_exp, inverse=True), qubits=B, inplace=True)
+
+    # measure the A and B registers
+    circuit.measure(A, outA)
+    circuit.measure(B, outB)
 
     circuit.draw("mpl", fold=-1)
     plt.show()
