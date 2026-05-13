@@ -20,30 +20,30 @@ def f(g, x, p, a, b):
     return (pow(g, a, p) * pow(x, b, p)) % p
 
 # generate unitary gate / permutation matrix for f(a, b)
-def FGate(g, x, p):
+def FGate(g, x, p, num_exp, num_base):
     
-    n = floor(log(p - 1, 2)) + 1 # number of qubits per register
-    U = np.full((2**(3*n), 2**(3*n)), 0, dtype=complex) # permutation matrix
+    sz = 2 ** (2 * num_exp + num_base)
+    U = np.full((sz, sz), 0, dtype=complex) # permutation matrix
 
-    for a in range(2**n):
-        for b in range(2**n):
-            # need a third to create true permutation matrix
+    for a in range(2**num_exp):
+        for b in range(2**num_exp):
+            # figure out modular exponentiation result
+            f_val = f(g, x, p, aa, bb)
+
+            # need a third dimension to create true permutation matrix
             #   since (a,b) alone do not give unique outputs f(a,b)
             #   but y XOR f(a, b) would be reversible and unique
             #   and in practice we'll just use y=0 always to store f(a,b)
-            for y in range(2**n):
+            for y in range(2**num_base):
                 # original state |A>|B>|Y>
-                old = (a << 6) | (b << 3) | y
+                old = (a << (num_exp + num_base)) | (b << num_base) | y
 
                 # coerce exponents to mod p-1
                 aa = a % (p - 1)
                 bb = b % (p - 1)
 
-                # figure out modular exponentiation result
-                f_val = f(g, x, p, aa, bb)
-
                 # new state |A>|B>|Y XOR F>
-                new = (a << 6) | (b << 3) | (y ^ f_val)
+                new = (a << (num_exp + num_base)) | (b << num_base) | (y ^ f_val)
 
                 # set result in unitary matrix
                 U[new][old] = 1
@@ -77,13 +77,14 @@ def solve_dlp(g, x, p):
     circuit = QuantumCircuit(A, B, F, G, out)
 
     # initialize superposition of A and B for all states
-    for qubit in A:
-        circuit.h(qubit)
-    for qubit in B:
-        circuit.h(qubit)
+    amps = np.zeros(2 ** num_exp, dtype=complex)
+    for i in range(p - 1):
+        amps[i] = 1 / np.sqrt(p - 1) # thus equal prob. to the p-1 valid states for A and B
+    circuit.initialize(amps, A)
+    circuit.initialize(amps, B)
     
     # create the gate that sets F into f(a, b)
-    FG = FGate(g, x, p)
+    FG = FGate(g, x, p, num_exp, num_base)
 
     # apply the gate to the circuit that we have
     circuit.compose(
@@ -114,4 +115,4 @@ def solve_dlp(g, x, p):
     print (counts)
 
 r = solve_dlp(3, 6, 7)
-print (f"{r} = 3?")
+print (f"r: {r}")
