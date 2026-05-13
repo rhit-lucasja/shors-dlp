@@ -11,8 +11,6 @@ from qiskit.transpiler import generate_preset_pass_manager
 
 from qiskit_aer import AerSimulator
 from qiskit_ibm_runtime import SamplerV2 as Sampler
-import warnings
-warnings.filterwarnings("ignore", category=DeprecationWarning)
 print ("Finished importing.")
 
 backend = AerSimulator()
@@ -25,7 +23,7 @@ def f(g, x, p, a, b):
 def FGate(g, x, p):
     
     n = floor(log(p - 1, 2)) + 1 # number of qubits per register
-    U = np.full((2**(3*n), 2**(3*n)), 0) # permutation matrix
+    U = np.full((2**(3*n), 2**(3*n)), 0, dtype=complex) # permutation matrix
 
     for a in range(2**n):
         for b in range(2**n):
@@ -42,7 +40,7 @@ def FGate(g, x, p):
                 bb = b % (p - 1)
 
                 # figure out modular exponentiation result
-                f_val = f(g, x, p, a, b)
+                f_val = f(g, x, p, aa, bb)
 
                 # new state |A>|B>|Y XOR F>
                 new = (a << 6) | (b << 3) | (y ^ f_val)
@@ -102,16 +100,20 @@ def solve_dlp(g, x, p):
     circuit.measure(A, outA)
     circuit.measure(B, outB)
 
+    # display the circuit in new window before simulation
     circuit.draw("mpl", fold=-1)
     plt.show()
 
-    # pm = generate_preset_pass_manager(backend=backend, optimization_level=1)
-    # trans_circuit = pm.run(circuit)
-    # sampler = Sampler(mode=backend)
-    # job = sampler.run([trans_circuit], shots=1024)
-    # result = job.result()[0]
-    # counts = result.data.out.get_counts()
-    # print (counts)
+    # run the circuit and determine counts for a and b
+    pm = generate_preset_pass_manager(backend=backend, optimization_level=1)
+    trans_circuit = pm.run(circuit)
+    sampler = Sampler(mode=backend)
+    job = sampler.run([trans_circuit], shots=1024)
+    result = job.result()[0]
+    countsA = result.data.outA.get_counts()
+    countsB = result.data.outB.get_counts()
+    print (countsA)
+    print (countsB)
 
 r = solve_dlp(3, 5, 7)
 print (f"{r} = 3?")
