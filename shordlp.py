@@ -66,16 +66,15 @@ def solve_dlp(g, x, p):
     A = QuantumRegister(num_exp, name="A")
     B = QuantumRegister(num_exp, name="B")
 
-    # for (g^A)(x^B)
+    # for (g^A)(x^B) entanglement
     F = QuantumRegister(num_base, name="F")
 
     # for measurements
     G = ClassicalRegister(num_base, name="G")
-    outA = ClassicalRegister(num_exp, name="outA")
-    outB = ClassicalRegister(num_exp, name="outB")
+    out = ClassicalRegister(2 * num_exp, name="out")
 
     # create circuit with known registers
-    circuit = QuantumCircuit(A, B, F, G, outA, outB)
+    circuit = QuantumCircuit(A, B, F, G, out)
 
     # initialize superposition of A and B for all states
     circuit.h(A)
@@ -89,7 +88,7 @@ def solve_dlp(g, x, p):
         FG, qubits=list(A) + list(B) + list(F), inplace=True
     )
 
-    # measure the F register to pare down superposed A, B values
+    # measure the F register to narrow down A, B pairs
     circuit.measure(F, G)
 
     # apply inverse QFT to the A and B registers
@@ -97,8 +96,7 @@ def solve_dlp(g, x, p):
     circuit.compose(QFT(num_exp, inverse=True), qubits=B, inplace=True)
 
     # measure the A and B registers
-    circuit.measure(A, outA)
-    circuit.measure(B, outB)
+    circuit.measure(A[:] + B[:], out)
 
     # display the circuit in new window before simulation
     circuit.draw("mpl", fold=-1)
@@ -110,10 +108,8 @@ def solve_dlp(g, x, p):
     sampler = Sampler(mode=backend)
     job = sampler.run([trans_circuit], shots=1024)
     result = job.result()[0]
-    countsA = result.data.outA.get_counts()
-    countsB = result.data.outB.get_counts()
-    print (countsA)
-    print (countsB)
+    counts = result.data.out.get_counts()
+    print (counts)
 
 r = solve_dlp(3, 6, 7)
 print (f"{r} = 3?")
