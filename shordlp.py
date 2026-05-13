@@ -54,7 +54,7 @@ def FGate(g, x, p, num_exp, num_base):
     return G
 
 # finds an r such that g^r = x (mod p)
-def solve_dlp(g, x, p):
+def solve_dlp(g, x, p, draw=False):
     
     print (f"Using Shor's to solve {g} ^ r = {x} (mod {p})")
 
@@ -101,8 +101,9 @@ def solve_dlp(g, x, p):
     circuit.measure(A[:] + B[:], out)
 
     # display the circuit in new window before simulation
-    circuit.draw("mpl", fold=-1)
-    plt.show()
+    if draw:
+        circuit.draw("mpl", fold=-1)
+        plt.show()
 
     # run the circuit and determine counts for a and b
     pm = generate_preset_pass_manager(backend=backend, optimization_level=1)
@@ -111,17 +112,39 @@ def solve_dlp(g, x, p):
     job = sampler.run([trans_circuit], shots=1024)
     result = job.result()[0]
     counts = result.data.out.get_counts()
-    print (counts)
 
-    # progressing thru most common results downward, solve for r
+    # convert outputs in counts to decimal a and b values
     guesses = []
     for output in counts:
         # convert bitstring to decimal
         decA = int(output[:3], 2)
         decB = int(output[3:], 2)
         guesses.append((decA, decB, counts[output]))
+
+    # now actually sort based on most common outputs first
+    guesses.sort(key=lambda x: x[2], reverse=True)
     print (guesses)
 
+    # iterate thru most common guesses and solve for r
+    #   QFT gave us a + rb = 0 (mod p-1)
+    #     so r = -a * b^-1 (mod p-1)
+    #       this does mean b must have an inverse mod p-1
+    for i in range(len(guesses)):
+        # extract guess information
+        (a, b, freq) = guesses[i]
+        # determine if a,b input is even valid
+        if gcd(b, p-1) != 1 or a == 0:
+            continue
+        # solve for r
+        na = (-a) % (p-1)
+        binv = pow(b, -1, p-1)
+        r = (na * binv) % (p-1)
+        if pow(g, r, p) == x:
+            return r
 
-r = solve_dlp(3, 6, 7)
-print (f"r: {r}")
+results = []
+for i in range(1, 7):
+    x = pow(3, i, 7)
+    r = solve_dlp(3, x, 7)
+    results.append(r)
+print (results)
