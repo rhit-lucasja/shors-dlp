@@ -1,8 +1,6 @@
 print ("Importing libraries...")
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
-from fractions import Fraction
 from math import floor, gcd, log
 
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
@@ -123,7 +121,6 @@ def solve_dlp(g, x, p, draw=False):
 
     # now actually sort based on most common outputs first
     guesses.sort(key=lambda x: x[2], reverse=True)
-    print (guesses)
 
     # iterate thru most common guesses and solve for r
     #   QFT gave us a + rb = 0 (mod p-1)
