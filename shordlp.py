@@ -9,7 +9,9 @@ from qiskit.transpiler import generate_preset_pass_manager
 
 from qiskit_aer import AerSimulator
 from qiskit_ibm_runtime import SamplerV2 as Sampler
+import warnings
 print ("Finished importing.")
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 backend = AerSimulator()
 
