@@ -54,13 +54,15 @@ def FGate(g, x, p, num_exp, num_base):
     return G
 
 # finds an r such that g^r = x (mod p)
-def solve_dlp(g, x, p, draw=False):
+def solve_dlp(g, x, p, draw=False, verbose=False):
     
     print (f"Using Shor's to solve {g} ^ r = {x} (mod {p})")
 
     num_exp = floor(log(p - 1, 2)) + 1
     num_base = floor(log(p, 2)) + 1
 
+    if verbose:
+        print ("\nConstructing quantum registers...")
     # registers for the exponents A,B when we try (g^A)(x^B)
     A = QuantumRegister(num_exp, name="A")
     B = QuantumRegister(num_exp, name="B")
@@ -75,29 +77,42 @@ def solve_dlp(g, x, p, draw=False):
     # create circuit with known registers
     circuit = QuantumCircuit(A, B, F, G, out)
 
-    # initialize superposition of A and B for all states
+    # initialize superposition of A and B for all valid states
+    if verbose:
+        print ("Initializing superposition of A and B...")
     amps = np.zeros(2 ** num_exp, dtype=complex)
     for i in range(p - 1):
         amps[i] = 1 / np.sqrt(p - 1) # thus equal prob. to the p-1 valid states for A and B
     circuit.initialize(amps, A)
     circuit.initialize(amps, B)
+    #circuit = circuit.decompose(reps=5)
     
     # create the gate that sets F into f(a, b)
+    if verbose:
+        print ("Creating modular exponentiation gate...")
     FG = FGate(g, x, p, num_exp, num_base)
 
     # apply the gate to the circuit that we have
+    if verbose:
+        print ("Populating register F using modular exponentiation...")
     circuit.compose(
         FG, qubits=list(A) + list(B) + list(F), inplace=True
     )
 
     # measure the F register to narrow down A, B pairs
+    if verbose:
+        print ("Measuring register F...")
     circuit.measure(F, G)
 
     # apply inverse QFT to the A and B registers
+    if verbose:
+        print ("Applying inverse QFT to A and B...")
     circuit.compose(QFT(num_exp, inverse=True), qubits=A, inplace=True)
     circuit.compose(QFT(num_exp, inverse=True), qubits=B, inplace=True)
 
     # measure the A and B registers
+    if verbose:
+        print ("Measuring registers A and B...")
     circuit.measure(A[:] + B[:], out)
 
     # display the circuit in new window before simulation
@@ -106,14 +121,20 @@ def solve_dlp(g, x, p, draw=False):
         plt.show()
 
     # run the circuit and determine counts for a and b
+    if verbose:
+        print ("\nOptimizing circuit for simulator...")
     pm = generate_preset_pass_manager(backend=backend, optimization_level=1)
     trans_circuit = pm.run(circuit)
+    if verbose:
+        print ("Simulating circuit...")
     sampler = Sampler(mode=backend)
     job = sampler.run([trans_circuit], shots=1024)
     result = job.result()[0]
     counts = result.data.out.get_counts()
 
     # convert outputs in counts to decimal a and b values
+    if verbose:
+        print ("\nProcessing circuit results...")
     guesses = []
     for output in counts:
         # convert bitstring to decimal
@@ -139,11 +160,15 @@ def solve_dlp(g, x, p, draw=False):
         binv = pow(b, -1, p-1)
         r = (na * binv) % (p-1)
         if pow(g, r, p) == x:
+            if verbose:
+                print (f"\nFound r={r}")
             return r
 
 results = []
 for i in range(1, 7):
     x = pow(3, i, 7)
-    r = solve_dlp(3, x, 7)
+    print (f"{'='*60}\n")
+    r = solve_dlp(3, x, 7, verbose=True)
+    print (f"\n{'='*60}")
     results.append(r)
 print (results)
